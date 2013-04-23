@@ -1,6 +1,5 @@
 var context = new webkitAudioContext();
-
-var buffer;
+var buffer, f;
 
 loadSample = function(url) {
     var request = new XMLHttpRequest();
@@ -9,6 +8,14 @@ loadSample = function(url) {
 
     request.onload = function() {
         buffer = context.createBuffer(request.response, false);
+
+        // var t = new soundtouch.RateTransposer(true);
+        // t.rate = 2;
+
+        var s = new soundtouch.Stretch(true);
+        s.tempo = 0.5;
+
+        f = new soundtouch.SimpleFilter(new soundtouch.WebAudioBufferSource(buffer), s);
     };
     request.send();
 };
@@ -41,23 +48,3 @@ function play() {
 function pause() {
     node.disconnect();
 }
-
-var source = {
-    extract: function(target, numFrames, position) {
-        var l = buffer.getChannelData(0);
-        var r = buffer.getChannelData(1);
-        for (var i = 0; i < numFrames; i++) {
-            target[i * 2] = l[i + position];
-            target[i * 2 + 1] = r[i + position];
-        }
-        return Math.min(numFrames, l.length - position);
-    }
-};
-
-var t = new soundtouch.RateTransposer(true);
-t.rate = 2;
-
-var s = new soundtouch.Stretch(true);
-s.tempo = 0.5;
-
-f = new soundtouch.SimpleFilter(source, s);

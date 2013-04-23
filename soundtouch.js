@@ -899,11 +899,27 @@ SoundTouch.prototype = {
     }
 };
 
+function WebAudioBufferSource(buffer) {
+    this.buffer = buffer;
+}
+WebAudioBufferSource.prototype = {
+    extract: function(target, numFrames, position) {
+        var l = this.buffer.getChannelData(0),
+            r = this.buffer.getChannelData(1);
+        for (var i = 0; i < numFrames; i++) {
+            target[i * 2] = l[i + position];
+            target[i * 2 + 1] = r[i + position];
+        }
+        return Math.min(numFrames, l.length - position);
+    }
+};
+
 window.soundtouch = {
     'RateTransposer': RateTransposer,
     'Stretch': Stretch,
     'SimpleFilter': SimpleFilter,
-    'SoundTouch': SoundTouch
+    'SoundTouch': SoundTouch,
+    'WebAudioBufferSource': WebAudioBufferSource
 };
 
 })(window);
