@@ -798,7 +798,7 @@ function SoundTouch() {
     this._outputBuffer = new FifoSampleBuffer();
 
     this._rate = 0;
-    this.tempo = 0;
+    this._tempo = 0;
 
     this.virtualPitch = 1.0;
     this.virtualRate = 1.0;
