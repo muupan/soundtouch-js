@@ -9,13 +9,9 @@ loadSample = function(url) {
     request.onload = function() {
         buffer = context.createBuffer(request.response, false);
 
-        // var t = new soundtouch.RateTransposer(true);
-        // t.rate = 2;
-
-        var s = new soundtouch.Stretch(true);
-        s.tempo = 0.5;
-
-        f = new soundtouch.SimpleFilter(new soundtouch.WebAudioBufferSource(buffer), s);
+        var st = new soundtouch.SoundTouch();
+        st.tempo = 0.75;
+        f = new soundtouch.SimpleFilter(new soundtouch.WebAudioBufferSource(buffer), st);
     };
     request.send();
 };
