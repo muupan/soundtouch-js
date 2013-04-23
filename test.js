@@ -66,10 +66,10 @@ var source = {
     }
 };
 
-var t = new RateTransposer(true);
+var t = new soundtouch.RateTransposer(true);
 t.rate = 2;
 
-var s = new Stretch(true);
+var s = new soundtouch.Stretch(true);
 s.tempo = 0.5;
 
-f = new SimpleFilter(source, s);
+f = new soundtouch.SimpleFilter(source, s);

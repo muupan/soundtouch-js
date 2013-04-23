@@ -18,7 +18,319 @@
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-//'use strict';
+(function() {
+
+function extend(a,b) {
+    for (var i in b) {
+        var g = b.__lookupGetter__(i),
+            s = b.__lookupSetter__(i);
+        if (g || s) {
+            if (g) {
+                a.__defineGetter__(i, g);
+            }
+            if (s) {
+                a.__defineSetter__(i, s);
+            }
+        }
+        else {
+            a[i] = b[i];
+        }
+    }
+    return a;
+}
+
+function testFloatEqual(a, b) {
+    return (a > b ? a - b : b - a) > 1e-10;
+}
+
+function AbstractFifoSamplePipe(createBuffers) {
+    if (createBuffers) {
+        this.inputBuffer = new FifoSampleBuffer();
+        this.outputBuffer = new FifoSampleBuffer();
+    }
+    else {
+        this.inputBuffer = this.outputBuffer = null;
+    }
+}
+AbstractFifoSamplePipe.prototype = {
+    get inputBuffer() {
+        return this._inputBuffer;
+    },
+    set inputBuffer(inputBuffer) {
+      this._inputBuffer = inputBuffer;
+    },
+    get outputBuffer() {
+        return this._outputBuffer;
+    },
+    set outputBuffer(outputBuffer) {
+      this._outputBuffer = outputBuffer;
+    },
+    clear: function() {
+        this._inputBuffer.clear();
+        this._outputBuffer.clear();
+    }
+};
+
+function RateTransposer(createBuffers) {
+    AbstractFifoSamplePipe.call(this, createBuffers);
+    this._reset();
+    this.rate = 1;
+}
+extend(RateTransposer.prototype, AbstractFifoSamplePipe.prototype);
+extend(RateTransposer.prototype, {
+    set rate(rate) {
+        this._rate = rate;
+        // TODO aa filter
+    },
+    _reset: function() {
+        this.slopeCount = 0;
+        this.prevSampleL = 0;
+        this.prevSampleR = 0;
+    },
+    clone: function() {
+        var result = new RateTransposer();
+        result.rate = this._rate;
+        return result;
+    },
+    process: function() {
+        // TODO aa filter
+        var numFrames = this._inputBuffer.frameCount;
+        this._outputBuffer.ensureAdditionalCapacity(numFrames / this._rate + 1);
+        var numFramesOutput = this._transpose(numFrames);
+        this._inputBuffer.receive();
+        this._outputBuffer.put(numFramesOutput);
+    },
+    _transpose: function(numFrames) {
+        if (numFrames === 0) {
+            return 0; // No work.
+        }
+
+        var src = this._inputBuffer.vector;
+        var srcOffset = this._inputBuffer.startIndex;
+
+        var dest = this._outputBuffer.vector;
+        var destOffset = this._outputBuffer.endIndex;
+
+        var used = 0;
+        var i = 0;
+
+        while (this.slopeCount < 1.0) {
+            dest[destOffset + 2 * i] = (1.0 - this.slopeCount) * this.prevSampleL + this.slopeCount * src[srcOffset];
+            dest[destOffset + 2 * i + 1] = (1.0 - this.slopeCount) * this.prevSampleR + this.slopeCount * src[srcOffset + 1];
+            i++;
+            this.slopeCount += this._rate;
+        }
+
+        this.slopeCount -= 1.0;
+
+        if (numFrames != 1) {
+            out: while (true) {
+                while (this.slopeCount > 1.0) {
+                    this.slopeCount -= 1.0;
+                    used++;
+                    if (used >= numFrames - 1) {
+                        break out;
+                    }
+                }
+
+                var srcIndex = srcOffset + 2 * used;
+                dest[destOffset + 2 * i] = (1.0 - this.slopeCount) * src[srcIndex] + this.slopeCount * src[srcIndex + 2];
+                dest[destOffset + 2 * i + 1] = (1.0 - this.slopeCount) * src[srcIndex + 1] + this.slopeCount * src[srcIndex + 3];
+
+                i++;
+                this.slopeCount += this._rate;
+            }
+        }
+
+        this.prevSampleL = src[srcOffset + 2 * numFrames - 2];
+        this.prevSampleR = src[srcOffset + 2 * numFrames - 1];
+
+        return i;
+    }
+});
+
+function FifoSampleBuffer() {
+    this._vector = new Float32Array();
+    this._position = 0;
+    this._frameCount = 0;
+}
+FifoSampleBuffer.prototype = {
+    get vector() {
+        return this._vector;
+    },
+    get position() {
+        return this._position;
+    },
+    get startIndex() {
+        return this._position * 2;
+    },
+    get frameCount() {
+        return this._frameCount;
+    },
+    get endIndex() {
+        return (this._position + this._frameCount) * 2;
+    },
+    clear: function() {
+        this.receive(frameCount);
+        this.rewind();
+    },
+    put: function(numFrames) {
+        this._frameCount += numFrames;
+    },
+    putSamples: function(samples, position, numFrames) {
+        position = position || 0;
+        var sourceOffset = position * 2;
+        if (numFrames < 0) {
+            numFrames = (samples.length - sourceOffset) / 2;
+        }
+        var numSamples = numFrames * 2;
+
+        this.ensureCapacity(numFrames + this._frameCount);
+
+        var destOffset = this.endIndex;
+        this._vector.set(samples.subarray(sourceOffset, sourceOffset + numSamples), destOffset);
+
+        this._frameCount += numFrames;
+    },
+    putBuffer: function(buffer, position, numFrames) {
+        position = position || 0;
+        if (numFrames < 0) {
+            numFrames = buffer.frameCount - position;
+        }
+        this.putSamples(buffer.vector, buffer.position + position, numFrames);
+    },
+    receive: function(numFrames) {
+        if (numFrames < 0 || numFrames > this._frameCount) {
+            numFrames = this._frameCount;
+        }
+        this._frameCount -= numFrames;
+        this._position += numFrames;
+    },
+    receiveSamples: function(output, numFrames) {
+        var numSamples = numFrames * 2;
+        var sourceOffset = this.startIndex;
+        output.set(this._vector.subarray(sourceOffset, sourceOffset + numSamples));
+        this.receive(numFrames);
+    },
+    extract: function(output, position, numFrames) {
+        var sourceOffset = this.startIndex + position * 2;
+        var numSamples = numFrames * 2;
+        output.set(this._vector.subarray(sourceOffset, sourceOffset + numSamples));
+    },
+    ensureCapacity: function(numFrames) {
+        var minLength = numFrames * 2;
+        if (this._vector.length < minLength) {
+            var newVector = new Float32Array(minLength);
+            newVector.set(this._vector.subarray(this.startIndex, this.endIndex));
+            this._vector = newVector;
+            this._position = 0;
+        }
+        else {
+            this.rewind();
+        }
+    },
+    ensureAdditionalCapacity: function(numFrames) {
+        this.ensureCapacity(this.frameCount + numFrames);
+    },
+    rewind: function() {
+        if (this._position > 0) {
+            this._vector.set(this._vector.subarray(this.startIndex, this.endIndex));
+            this._position = 0;
+        }
+    }
+};
+
+function FilterSupport(pipe) {
+    this._pipe = pipe;
+}
+FilterSupport.prototype = {
+    get pipe() {
+        return this._pipe;
+    },
+    get inputBuffer() {
+        return this._pipe.inputBuffer;
+    },
+    get outputBuffer() {
+        return this._pipe.outputBuffer;
+    },
+    fillOutputBuffer: function(numFrames) {
+        while (this.outputBuffer.frameCount < numFrames) {
+            // TODO hardcoded buffer size
+            var numInputFrames = (8192 * 2) - this.inputBuffer.frameCount;
+
+            this.fillInputBuffer(numInputFrames);
+
+            if (this.inputBuffer.frameCount < (8192 * 2)) {
+                break;
+                // TODO flush pipe
+            }
+            this._pipe.process();
+        }
+    },
+    clear: function() {
+        this._pipe.clear();
+    }
+};
+
+function SimpleFilter(sourceSound, pipe) {
+    FilterSupport.call(this, pipe);
+    this.sourceSound = sourceSound;
+    this.historyBufferSize = 22050;
+    this._sourcePosition = 0;
+    this.outputBufferPosition = 0;
+    this._position = 0;
+}
+extend(SimpleFilter.prototype, FilterSupport.prototype);
+extend(SimpleFilter.prototype, {
+    get position() {
+        return this._position;
+    },
+    set position(position) {
+        if (position > this._position) {
+            throw new RangeError('New position may not be greater than current position');
+        }
+        var newOutputBufferPosition = this.outputBufferPosition - (this._position - position);
+        if (newOutputBufferPosition < 0) {
+            throw new RangeError('New position falls outside of history buffer');
+        }
+        this.outputBufferPosition = newOutputBufferPosition;
+        this._position = position;
+    },
+    get sourcePosition() {
+        return this._sourcePosition;
+    },
+    set sourcePosition(sourcePosition) {
+        this.clear();
+        this._sourcePosition = sourcePosition;
+    },
+    fillInputBuffer: function(numFrames) {
+        var samples = new Float32Array(numFrames * 2);
+        var numFramesExtracted = this.sourceSound.extract(samples, numFrames, this._sourcePosition);
+        this._sourcePosition += numFramesExtracted;
+        this.inputBuffer.putSamples(samples, 0, numFramesExtracted);
+    },
+    extract: function(target, numFrames) {
+        this.fillOutputBuffer(this.outputBufferPosition + numFrames);
+
+        var numFramesExtracted = Math.min(numFrames, this.outputBuffer.frameCount - this.outputBufferPosition);
+        this.outputBuffer.extract(target, this.outputBufferPosition, numFramesExtracted);
+
+        var currentFrames = this.outputBufferPosition + numFramesExtracted;
+        this.outputBufferPosition = Math.min(this.historyBufferSize, currentFrames);
+        this.outputBuffer.receive(Math.max(currentFrames - this.historyBufferSize, 0));
+
+        this._position += numFramesExtracted;
+        return numFramesExtracted;
+    },
+    handleSampleData: function(e) {
+        this.extract(e.data, 4096);
+    },
+    clear: function() {
+        // TODO yuck
+        FilterSupport.prototype.clear.call(this);
+        this.outputBufferPosition = 0;
+    }
+});
 
 /**
 * Giving this value for the sequence length sets automatic parameter value
@@ -116,9 +428,7 @@ function Stretch(createBuffers) {
     this._tempo = 1;
     this.setParameters(44100, DEFAULT_SEQUENCE_MS, DEFAULT_SEEKWINDOW_MS, DEFAULT_OVERLAP_MS);
 }
-
 extend(Stretch.prototype, AbstractFifoSamplePipe.prototype);
-
 extend(Stretch.prototype, {
     clear: function() {
         AbstractFifoSamplePipe.prototype.clear.call(this);
@@ -476,3 +786,122 @@ extend(Stretch.prototype, {
       return this._tempo;
     }
 });
+
+function SoundTouch() {
+    this.rateTransposer = new RateTransposer(false);
+    this.tdStretch = new Stretch(false);
+
+    this._inputBuffer = new FifoSampleBuffer();
+    this._intermediateBuffer = new FifoSampleBuffer();
+    this._outputBuffer = new FifoSampleBuffer();
+
+    this._rate = 0;
+    this.tempo = 0;
+
+    this.virtualPitch = 1.0;
+    this.virtualRate = 1.0;
+    this.virtualTempo = 1.0;
+
+    this._calculateEffectiveRateAndTempo();
+}
+SoundTouch.prototype = {
+    clear: function() {
+        rateTransposer.clear();
+        tdStretch.clear();
+    },
+    clone: function() {
+        var result = new SoundTouch();
+        result.rate = rate;
+        result.tempo = tempo;
+        return result;
+    },
+    get rate() {
+        return this._rate;
+    },
+    set rate(rate) {
+        this.virtualRate = rate;
+        this._calculateEffectiveRateAndTempo();
+    },
+    set rateChange(rateChange) {
+        this.rate = 1.0 + 0.01 * rateChange;
+    },
+    get tempo() {
+        return this._tempo;
+    },
+    set tempo(tempo) {
+        this.virtualTempo = tempo;
+        this._calculateEffectiveRateAndTempo();
+    },
+    set tempoChange(tempoChange) {
+        this.tempo = 1.0 + 0.01 * tempoChange;
+    },
+    set pitch(pitch) {
+        this.virtualPitch = pitch;
+        this._calculateEffectiveRateAndTempo();
+    },
+    set pitchOctaves(pitchOctaves) {
+        this.pitch = Math.exp(0.69314718056 * pitchOctaves);
+        this._calculateEffectiveRateAndTempo();
+    },
+    set pitchSemitones(pitchSemitones) {
+        this.pitchOctaves = pitchSemitones / 12.0;
+    },
+    get inputBuffer() {
+        return this._inputBuffer;
+    },
+    get outputBuffer() {
+        return this._outputBuffer;
+    },
+    _calculateEffectiveRateAndTempo: function() {
+        var previousTempo = this._tempo;
+        var previousRate = this._rate;
+
+        this._tempo = this.virtualTempo / this.virtualPitch;
+        this._rate = this.virtualRate * this.virtualPitch;
+
+        if (testFloatEqual(this._tempo, previousTempo)) {
+            this.tdStretch.tempo = this._tempo;
+        }
+        if (testFloatEqual(this._rate, previousRate)) {
+            this.rateTransposer.rate = this._rate;
+        }
+
+        if (this._rate > 1.0) {
+            if (this._outputBuffer != this.rateTransposer.outputBuffer) {
+                this.tdStretch.inputBuffer = this._inputBuffer;
+                this.tdStretch.outputBuffer = this._intermediateBuffer;
+
+                this.rateTransposer.inputBuffer = this._intermediateBuffer;
+                this.rateTransposer.outputBuffer = this._outputBuffer;
+            }
+        }
+        else {
+            if (this._outputBuffer != this.tdStretch.outputBuffer) {
+                this.rateTransposer.inputBuffer = this._inputBuffer;
+                this.rateTransposer.outputBuffer = this._intermediateBuffer;
+
+                this.tdStretch.inputBuffer = this._intermediateBuffer;
+                this.tdStretch.outputBuffer = this._outputBuffer;
+            }
+        }
+    },
+    process: function() {
+        if (this._rate > 1.0) {
+            this.tdStretch.process();
+            this.rateTransposer.process();
+        }
+        else {
+            this.rateTransposer.process();
+            this.tdStretch.process();
+        }
+    }
+};
+
+window.soundtouch = {
+    'RateTransposer': RateTransposer,
+    'Stretch': Stretch,
+    'SimpleFilter': SimpleFilter,
+    'SoundTouch': SoundTouch
+};
+
+})();
