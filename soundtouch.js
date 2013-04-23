@@ -914,12 +914,32 @@ WebAudioBufferSource.prototype = {
     }
 };
 
+function getWebAudioNode(context, filter) {
+    var BUFFER_SIZE = 1024;
+    var node = context.createJavaScriptNode(BUFFER_SIZE, 2, 2),
+        samples = new Float32Array(BUFFER_SIZE * 2);
+    node.onaudioprocess = function(e) {
+        var l = e.outputBuffer.getChannelData(0),
+            r = e.outputBuffer.getChannelData(1);
+        var framesExtracted = filter.extract(samples, BUFFER_SIZE);
+        if (framesExtracted === 0) {
+            node.disconnect(); // Pause.
+        }
+        for (var i = 0; i < framesExtracted; i++) {
+            l[i] = samples[i * 2];
+            r[i] = samples[i * 2 + 1];
+        }
+    };
+    return node;
+}
+
 window.soundtouch = {
     'RateTransposer': RateTransposer,
     'Stretch': Stretch,
     'SimpleFilter': SimpleFilter,
     'SoundTouch': SoundTouch,
-    'WebAudioBufferSource': WebAudioBufferSource
+    'WebAudioBufferSource': WebAudioBufferSource,
+    'getWebAudioNode': getWebAudioNode
 };
 
 })(window);

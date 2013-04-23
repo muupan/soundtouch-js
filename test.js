@@ -1,5 +1,5 @@
 var context = new webkitAudioContext();
-var buffer, f;
+var buffer, node;
 
 loadSample = function(url) {
     var request = new XMLHttpRequest();
@@ -11,36 +11,17 @@ loadSample = function(url) {
 
         var st = new soundtouch.SoundTouch();
         st.tempo = 0.75;
-        f = new soundtouch.SimpleFilter(new soundtouch.WebAudioBufferSource(buffer), st);
+        var filter = new soundtouch.SimpleFilter(new soundtouch.WebAudioBufferSource(buffer), st);
+        node = soundtouch.getWebAudioNode(context, filter);
     };
     request.send();
 };
 
 loadSample('/media/mp3/spanish_flea.mp3');
 
-var BUFFER_SIZE = 1024;
-
-var node = context.createJavaScriptNode(BUFFER_SIZE, 2, 2);
-
-var samples = new Float32Array(BUFFER_SIZE * 2);
-
-node.onaudioprocess = function(e) {
-    var l = e.outputBuffer.getChannelData(0);
-    var r = e.outputBuffer.getChannelData(1);
-    var framesExtracted = f.extract(samples, BUFFER_SIZE);
-    if (framesExtracted === 0) {
-        pause();
-    }
-    for (var i = 0; i < framesExtracted; i++) {
-        l[i] = samples[i * 2];
-        r[i] = samples[i * 2 + 1];
-    }
-};
-
 function play() {
     node.connect(context.destination);
 }
-
 function pause() {
     node.disconnect();
 }
