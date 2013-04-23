@@ -20,6 +20,88 @@
 
 (function() {
 
+/**
+* Giving this value for the sequence length sets automatic parameter value
+* according to tempo setting (recommended)
+*/
+var USE_AUTO_SEQUENCE_LEN = 0;
+
+/**
+* Default length of a single processing sequence, in milliseconds. This determines to how
+* long sequences the original sound is chopped in the time-stretch algorithm.
+*
+* The larger this value is, the lesser sequences are used in processing. In principle
+* a bigger value sounds better when slowing down tempo, but worse when increasing tempo
+* and vice versa.
+*
+* Increasing this value reduces computational burden and vice versa.
+*/
+//var DEFAULT_SEQUENCE_MS = 130
+var DEFAULT_SEQUENCE_MS = USE_AUTO_SEQUENCE_LEN;
+
+/**
+* Giving this value for the seek window length sets automatic parameter value
+* according to tempo setting (recommended)
+*/
+var USE_AUTO_SEEKWINDOW_LEN = 0;
+
+/**
+* Seeking window default length in milliseconds for algorithm that finds the best possible
+* overlapping location. This determines from how wide window the algorithm may look for an
+* optimal joining location when mixing the sound sequences back together.
+*
+* The bigger this window setting is, the higher the possibility to find a better mixing
+* position will become, but at the same time large values may cause a "drifting" artifact
+* because consequent sequences will be taken at more uneven intervals.
+*
+* If there's a disturbing artifact that sounds as if a constant frequency was drifting
+* around, try reducing this setting.
+*
+* Increasing this value increases computational burden and vice versa.
+*/
+//var DEFAULT_SEEKWINDOW_MS = 25;
+var DEFAULT_SEEKWINDOW_MS = USE_AUTO_SEEKWINDOW_LEN;
+
+/**
+* Overlap length in milliseconds. When the chopped sound sequences are mixed back together,
+* to form a continuous sound stream, this parameter defines over how long period the two
+* consecutive sequences are let to overlap each other.
+*
+* This shouldn't be that critical parameter. If you reduce the DEFAULT_SEQUENCE_MS setting
+* by a large amount, you might wish to try a smaller value on this.
+*
+* Increasing this value increases computational burden and vice versa.
+*/
+var DEFAULT_OVERLAP_MS = 8;
+
+// Table for the hierarchical mixing position seeking algorithm
+var _SCAN_OFFSETS = [
+    [ 124,  186,  248,  310,  372,  434,  496,  558,  620,  682,  744, 806,
+      868,  930,  992, 1054, 1116, 1178, 1240, 1302, 1364, 1426, 1488,   0],
+    [-100,  -75,  -50,  -25,   25,   50,   75,  100,    0,    0,    0,   0,
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0],
+    [ -20,  -15,  -10,   -5,    5,   10,   15,   20,    0,    0,    0,   0,
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0],
+    [  -4,   -3,   -2,   -1,    1,    2,    3,    4,    0,    0,    0,   0,
+        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0]];
+
+// Adjust tempo param according to tempo, so that variating processing sequence length is used
+// at varius tempo settings, between the given low...top limits
+var AUTOSEQ_TEMPO_LOW = 0.5;     // auto setting low tempo range (-50%)
+var AUTOSEQ_TEMPO_TOP = 2.0;     // auto setting top tempo range (+100%)
+
+// sequence-ms setting values at above low & top tempo
+var AUTOSEQ_AT_MIN = 125.0;
+var AUTOSEQ_AT_MAX = 50.0;
+var AUTOSEQ_K = ((AUTOSEQ_AT_MAX - AUTOSEQ_AT_MIN) / (AUTOSEQ_TEMPO_TOP - AUTOSEQ_TEMPO_LOW));
+var AUTOSEQ_C = (AUTOSEQ_AT_MIN - (AUTOSEQ_K) * (AUTOSEQ_TEMPO_LOW));
+
+// seek-window-ms setting values at above low & top tempo
+var AUTOSEEK_AT_MIN = 25.0;
+var AUTOSEEK_AT_MAX = 15.0;
+var AUTOSEEK_K = ((AUTOSEEK_AT_MAX - AUTOSEEK_AT_MIN) / (AUTOSEQ_TEMPO_TOP - AUTOSEQ_TEMPO_LOW));
+var AUTOSEEK_C = (AUTOSEEK_AT_MIN - (AUTOSEEK_K) * (AUTOSEQ_TEMPO_LOW));
+
 function extend(a,b) {
     for (var i in b) {
         var g = b.__lookupGetter__(i),
@@ -331,88 +413,6 @@ extend(SimpleFilter.prototype, {
         this.outputBufferPosition = 0;
     }
 });
-
-/**
-* Giving this value for the sequence length sets automatic parameter value
-* according to tempo setting (recommended)
-*/
-var USE_AUTO_SEQUENCE_LEN = 0;
-
-/**
-* Default length of a single processing sequence, in milliseconds. This determines to how
-* long sequences the original sound is chopped in the time-stretch algorithm.
-*
-* The larger this value is, the lesser sequences are used in processing. In principle
-* a bigger value sounds better when slowing down tempo, but worse when increasing tempo
-* and vice versa.
-*
-* Increasing this value reduces computational burden and vice versa.
-*/
-//var DEFAULT_SEQUENCE_MS = 130
-var DEFAULT_SEQUENCE_MS = USE_AUTO_SEQUENCE_LEN;
-
-/**
-* Giving this value for the seek window length sets automatic parameter value
-* according to tempo setting (recommended)
-*/
-var USE_AUTO_SEEKWINDOW_LEN = 0;
-
-/**
-* Seeking window default length in milliseconds for algorithm that finds the best possible
-* overlapping location. This determines from how wide window the algorithm may look for an
-* optimal joining location when mixing the sound sequences back together.
-*
-* The bigger this window setting is, the higher the possibility to find a better mixing
-* position will become, but at the same time large values may cause a "drifting" artifact
-* because consequent sequences will be taken at more uneven intervals.
-*
-* If there's a disturbing artifact that sounds as if a constant frequency was drifting
-* around, try reducing this setting.
-*
-* Increasing this value increases computational burden and vice versa.
-*/
-//var DEFAULT_SEEKWINDOW_MS = 25;
-var DEFAULT_SEEKWINDOW_MS = USE_AUTO_SEEKWINDOW_LEN;
-
-/**
-* Overlap length in milliseconds. When the chopped sound sequences are mixed back together,
-* to form a continuous sound stream, this parameter defines over how long period the two
-* consecutive sequences are let to overlap each other.
-*
-* This shouldn't be that critical parameter. If you reduce the DEFAULT_SEQUENCE_MS setting
-* by a large amount, you might wish to try a smaller value on this.
-*
-* Increasing this value increases computational burden and vice versa.
-*/
-var DEFAULT_OVERLAP_MS = 8;
-
-// Table for the hierarchical mixing position seeking algorithm
-var _SCAN_OFFSETS = [
-    [ 124,  186,  248,  310,  372,  434,  496,  558,  620,  682,  744, 806,
-      868,  930,  992, 1054, 1116, 1178, 1240, 1302, 1364, 1426, 1488,   0],
-    [-100,  -75,  -50,  -25,   25,   50,   75,  100,    0,    0,    0,   0,
-        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0],
-    [ -20,  -15,  -10,   -5,    5,   10,   15,   20,    0,    0,    0,   0,
-        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0],
-    [  -4,   -3,   -2,   -1,    1,    2,    3,    4,    0,    0,    0,   0,
-        0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,   0]];
-
-// Adjust tempo param according to tempo, so that variating processing sequence length is used
-// at varius tempo settings, between the given low...top limits
-var AUTOSEQ_TEMPO_LOW = 0.5;     // auto setting low tempo range (-50%)
-var AUTOSEQ_TEMPO_TOP = 2.0;     // auto setting top tempo range (+100%)
-
-// sequence-ms setting values at above low & top tempo
-var AUTOSEQ_AT_MIN = 125.0;
-var AUTOSEQ_AT_MAX = 50.0;
-var AUTOSEQ_K = ((AUTOSEQ_AT_MAX - AUTOSEQ_AT_MIN) / (AUTOSEQ_TEMPO_TOP - AUTOSEQ_TEMPO_LOW));
-var AUTOSEQ_C = (AUTOSEQ_AT_MIN - (AUTOSEQ_K) * (AUTOSEQ_TEMPO_LOW));
-
-// seek-window-ms setting values at above low & top tempo
-var AUTOSEEK_AT_MIN = 25.0;
-var AUTOSEEK_AT_MAX = 15.0;
-var AUTOSEEK_K = ((AUTOSEEK_AT_MAX - AUTOSEEK_AT_MIN) / (AUTOSEQ_TEMPO_TOP - AUTOSEQ_TEMPO_LOW));
-var AUTOSEEK_C = (AUTOSEEK_AT_MIN - (AUTOSEEK_K) * (AUTOSEQ_TEMPO_LOW));
 
 function Stretch(createBuffers) {
     AbstractFifoSamplePipe.call(this, createBuffers);
