@@ -169,11 +169,6 @@ extend(RateTransposer.prototype, {
         this.prevSampleL = 0;
         this.prevSampleR = 0;
     },
-    clone: function() {
-        var result = new RateTransposer();
-        result.rate = this._rate;
-        return result;
-    },
     process: function() {
         // TODO aa filter
         var numFrames = this._inputBuffer.frameCount;
@@ -556,12 +551,6 @@ extend(Stretch.prototype, {
     set quickSeek(enable) {
         this.bQuickSeek = enable;
     },
-    clone: function() {
-        var result = new Stretch();
-        result.tempo = this.tempo;
-        result.setParameters(this.sampleRate, this.sequenceMs, this.seekWindowMs, this.overlapMs);
-        return result;
-    },
 
     /**
     * Seeks for the optimal overlap-mixing position.
@@ -800,12 +789,6 @@ SoundTouch.prototype = {
     clear: function() {
         rateTransposer.clear();
         tdStretch.clear();
-    },
-    clone: function() {
-        var result = new SoundTouch();
-        result.rate = rate;
-        result.tempo = tempo;
-        return result;
     },
     get rate() {
         return this._rate;
