@@ -8,22 +8,10 @@ loadSample = function(url) {
     request.responseType = 'arraybuffer';
 
     request.onload = function() {
-        console.log('url loaded');
-        createBuffer(request.response);
+        buffer = context.createBuffer(request.response, false);
     };
-
-    console.log('reading url');
     request.send();
 };
-
-function createBuffer(arrayBuffer) {
-    offset = 0;
-    startTime = 0;
-    var start = new Date();
-    // NOTE the second parameter is required, or a TypeError is thrown
-    buffer = context.createBuffer(arrayBuffer, false);
-    console.log('loaded audio in ' + (new Date() - start));
-}
 
 loadSample('/media/mp3/spanish_flea.mp3');
 
