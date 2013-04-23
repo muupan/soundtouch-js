@@ -262,7 +262,7 @@ FifoSampleBuffer.prototype = {
     putSamples: function(samples, position, numFrames) {
         position = position || 0;
         var sourceOffset = position * 2;
-        if (numFrames < 0) {
+        if (!(numFrames >= 0)) {
             numFrames = (samples.length - sourceOffset) / 2;
         }
         var numSamples = numFrames * 2;
@@ -276,13 +276,13 @@ FifoSampleBuffer.prototype = {
     },
     putBuffer: function(buffer, position, numFrames) {
         position = position || 0;
-        if (numFrames < 0) {
+        if (!(numFrames >= 0)) {
             numFrames = buffer.frameCount - position;
         }
         this.putSamples(buffer.vector, buffer.position + position, numFrames);
     },
     receive: function(numFrames) {
-        if (numFrames < 0 || numFrames > this._frameCount) {
+        if (!(numFrames >= 0) || numFrames > this._frameCount) {
             numFrames = this._frameCount;
         }
         this._frameCount -= numFrames;
