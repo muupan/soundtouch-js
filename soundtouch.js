@@ -463,7 +463,8 @@ extend(Stretch.prototype, {
         if (aSequenceMS > 0) {
             this.sequenceMs = aSequenceMS;
             this.bAutoSeqSetting = false;
-        } else {
+        }
+        else {
             // zero or below, use automatic setting
             this.bAutoSeqSetting = true;
         }
@@ -471,7 +472,8 @@ extend(Stretch.prototype, {
         if (aSeekWindowMS > 0) {
             this.seekWindowMs = aSeekWindowMS;
             this.bAutoSeekSetting = false;
-        } else {
+        }
+        else {
             // zero or below, use automatic setting
             this.bAutoSeekSetting = true;
         }
