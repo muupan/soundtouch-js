@@ -49,9 +49,8 @@ extend(RateTransposer.prototype, {
         this._outputBuffer.put(numFramesOutput);
     },
     _transpose: function(numFrames) {
-        if (numFrames == 0) {
-            // no work
-            return 0;
+        if (numFrames === 0) {
+            return 0; // No work.
         }
 
         var src = this._inputBuffer.vector;
@@ -63,7 +62,7 @@ extend(RateTransposer.prototype, {
         var used = 0;
         var i = 0;
 
-        while(this.slopeCount < 1.0) {
+        while (this.slopeCount < 1.0) {
             dest[destOffset + 2 * i] = (1.0 - this.slopeCount) * this.prevSampleL + this.slopeCount * src[srcOffset];
             dest[destOffset + 2 * i + 1] = (1.0 - this.slopeCount) * this.prevSampleR + this.slopeCount * src[srcOffset + 1];
             i++;
