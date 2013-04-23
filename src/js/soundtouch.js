@@ -35,8 +35,7 @@ function SoundTouch() {
 
     this._calculateEffectiveRateAndTempo();
 }
-
-extend(SoundTouch.prototype, {
+SoundTouch.prototype = {
     clear: function() {
         rateTransposer.clear();
         tdStretch.clear();
@@ -127,4 +126,4 @@ extend(SoundTouch.prototype, {
             this.tdStretch.process();
         }
     }
-});
+};
