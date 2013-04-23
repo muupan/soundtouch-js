@@ -30,20 +30,17 @@ extend(RateTransposer.prototype, {
         this._rate = rate;
         // TODO aa filter
     },
-
-    _reset: function () {
+    _reset: function() {
         this.slopeCount = 0;
         this.prevSampleL = 0;
         this.prevSampleR = 0;
     },
-
-    clone: function () {
+    clone: function() {
         var result = new RateTransposer();
         result.rate = this._rate;
         return result;
     },
-
-    process: function () {
+    process: function() {
         // TODO aa filter
         var numFrames = this._inputBuffer.frameCount;
         this._outputBuffer.ensureAdditionalCapacity(numFrames / this._rate + 1);
@@ -51,8 +48,7 @@ extend(RateTransposer.prototype, {
         this._inputBuffer.receive();
         this._outputBuffer.put(numFramesOutput);
     },
-
-    _transpose: function (numFrames) {
+    _transpose: function(numFrames) {
         if (numFrames == 0) {
             // no work
             return 0;

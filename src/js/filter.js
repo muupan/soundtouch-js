@@ -26,19 +26,12 @@ FilterSupport.prototype = {
     get pipe() {
         return this._pipe;
     },
-
     get inputBuffer() {
         return this._pipe.inputBuffer;
     },
-
     get outputBuffer() {
         return this._pipe.outputBuffer;
     },
-
-    // fillInputBuffer: function(numFrames) {
-    //     throw new Error("fillInputBuffer() not overridden");
-    // },
-
     fillOutputBuffer: function(numFrames) {
         while (this.outputBuffer.frameCount < numFrames) {
             // TODO hardcoded buffer size
@@ -53,7 +46,6 @@ FilterSupport.prototype = {
             this._pipe.process();
         }
     },
-
     clear: function() {
         this._pipe.clear();
     }
@@ -74,7 +66,6 @@ extend(SimpleFilter.prototype, {
     get position() {
         return this._position;
     },
-
     set position(position) {
         if (position > this._position) {
             throw new RangeError('New position may not be greater than current position');
@@ -86,23 +77,19 @@ extend(SimpleFilter.prototype, {
         this.outputBufferPosition = newOutputBufferPosition;
         this._position = position;
     },
-
     get sourcePosition() {
         return this._sourcePosition;
     },
-
     set sourcePosition(sourcePosition) {
         this.clear();
         this._sourcePosition = sourcePosition;
     },
-
     fillInputBuffer: function(numFrames) {
         var samples = new Float32Array(numFrames * 2);
         var numFramesExtracted = this.sourceSound.extract(samples, numFrames, this._sourcePosition);
         this._sourcePosition += numFramesExtracted;
         this.inputBuffer.putSamples(samples, 0, numFramesExtracted);
     },
-
     extract: function(target, numFrames) {
         this.fillOutputBuffer(this.outputBufferPosition + numFrames);
 
@@ -116,11 +103,9 @@ extend(SimpleFilter.prototype, {
         this._position += numFramesExtracted;
         return numFramesExtracted;
     },
-
     handleSampleData: function(e) {
         this.extract(e.data, 4096);
     },
-
     clear: function() {
         // TODO yuck
         FilterSupport.prototype.clear.call(this);

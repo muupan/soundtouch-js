@@ -18,7 +18,6 @@
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
 function AbstractFifoSamplePipe(createBuffers) {
     if (createBuffers) {
         this.inputBuffer = new FifoSampleBuffer();
@@ -28,25 +27,21 @@ function AbstractFifoSamplePipe(createBuffers) {
         this.inputBuffer = this.outputBuffer = null;
     }
 }
-        
+
 AbstractFifoSamplePipe.prototype = {
     get inputBuffer() {
         return this._inputBuffer;
     },
-
-    set inputBuffer (inputBuffer) {
+    set inputBuffer(inputBuffer) {
       this._inputBuffer = inputBuffer;
     },
-
     get outputBuffer() {
         return this._outputBuffer;
     },
-
     set outputBuffer(outputBuffer) {
       this._outputBuffer = outputBuffer;
     },
-
-    clear: function () {
+    clear: function() {
         this._inputBuffer.clear();
         this._outputBuffer.clear();
     }

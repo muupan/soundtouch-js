@@ -120,12 +120,11 @@ function Stretch(createBuffers) {
 extend(Stretch.prototype, AbstractFifoSamplePipe.prototype);
 
 extend(Stretch.prototype, {
-    clear: function () {
+    clear: function() {
         AbstractFifoSamplePipe.prototype.clear.call(this);
         this._clearMidBuffer();
     },
-
-    _clearMidBuffer: function () {
+    _clearMidBuffer: function() {
         if (this.bMidBufferDirty) {
             this.bMidBufferDirty = false;
             this.pMidBuffer = null;
@@ -196,16 +195,9 @@ extend(Stretch.prototype, {
         // process another batch of samples
         this.sampleReq = Math.max(intskip + this.overlapLength, this.seekWindowLength) + this.seekLength;
     },
-
-
-    // get tempo() {
-    //   return this._tempo;
-    // },
-
     get inputChunkSize() {
         return this.sampleReq;
     },
-
     get outputChunkSize() {
         return this.overlapLength + Math.max(0, this.seekWindowLength - 2 * this.overlapLength);
     },
@@ -213,7 +205,7 @@ extend(Stretch.prototype, {
     /**
     * Calculates overlapInMsec period length in samples.
     */
-    calculateOverlapLength: function (overlapInMsec) {
+    calculateOverlapLength: function(overlapInMsec) {
         var newOvl;
 
         // TODO assert(overlapInMsec >= 0);
@@ -228,8 +220,7 @@ extend(Stretch.prototype, {
         this.pRefMidBuffer = new Float32Array(this.overlapLength * 2);
         this.pMidBuffer = new Float32Array(this.overlapLength * 2);
     },
-
-    checkLimits: function (x, mi, ma) {
+    checkLimits: function(x, mi, ma) {
         return (x < mi) ? mi : ((x > ma) ? ma : x);
     },
 
@@ -257,15 +248,13 @@ extend(Stretch.prototype, {
         this.seekLength = Math.floor((this.sampleRate * this.seekWindowMs) / 1000);
     },
 
-
     /**
     * Enables/disables the quick position seeking algorithm.
     */
     set quickSeek(enable) {
         this.bQuickSeek = enable;
     },
-
-    clone: function () {
+    clone: function() {
         var result = new Stretch();
         result.tempo = this.tempo;
         result.setParameters(this.sampleRate, this.sequenceMs, this.seekWindowMs, this.overlapMs);
@@ -275,7 +264,7 @@ extend(Stretch.prototype, {
     /**
     * Seeks for the optimal overlap-mixing position.
     */
-    seekBestOverlapPosition: function () {
+    seekBestOverlapPosition: function() {
       if (this.bQuickSeek) {
           return this.seekBestOverlapPositionStereoQuick();
       }
@@ -292,13 +281,10 @@ extend(Stretch.prototype, {
     * sample sequences are 'most alike', in terms of the highest cross-correlation
     * value over the overlapping period
     */
-    seekBestOverlapPositionStereo: function () {
-        var bestOffs;
-        var bestCorr
-        var corr;
-        var i;
+    seekBestOverlapPositionStereo: function() {
+        var bestOffs, bestCorr, corr, i;
 
-        // Slopes the amplitudes of the 'midBuffer' samples
+        // Slopes the amplitudes of the 'midBuffer' samples.
         this.precalcCorrReferenceStereo();
 
         bestCorr = Number.MIN_VALUE;
@@ -306,18 +292,17 @@ extend(Stretch.prototype, {
 
         // Scans for the best correlation value by testing each possible position
         // over the permitted range.
-        for (i = 0; i < this.seekLength; i ++) {
+        for (i = 0; i < this.seekLength; i++) {
             // Calculates correlation value for the mixing position corresponding
             // to 'i'
             corr = this.calcCrossCorrStereo(2 * i, this.pRefMidBuffer);
 
-            // Checks for the highest correlation value
+            // Checks for the highest correlation value.
             if (corr > bestCorr) {
                 bestCorr = corr;
                 bestOffs = i;
             }
         }
-
         return bestOffs;
     },
 
@@ -329,14 +314,8 @@ extend(Stretch.prototype, {
     * sample sequences are 'most alike', in terms of the highest cross-correlation
     * value over the overlapping period
     */
-    seekBestOverlapPositionStereoQuick: function () {
-        var j;
-        var bestOffs;
-        var bestCorr;
-        var corr;
-        var scanCount;
-        var corrOffset;
-        var tempOffset;
+    seekBestOverlapPositionStereoQuick: function() {
+        var j, bestOffs, bestCorr, corr, scanCount, corrOffset, tempOffset;
 
         // Slopes the amplitude of the 'midBuffer' samples
         this.precalcCorrReferenceStereo();
@@ -352,11 +331,13 @@ extend(Stretch.prototype, {
         // In first pass the routine searhes for the highest correlation with
         // relatively coarse steps, then rescans the neighbourhood of the highest
         // correlation with better resolution and so on.
-        for (scanCount = 0; scanCount < 4; scanCount ++) {
+        for (scanCount = 0; scanCount < 4; scanCount++) {
             j = 0;
             while (_SCAN_OFFSETS[scanCount][j]) {
                 tempOffset = corrOffset + _SCAN_OFFSETS[scanCount][j];
-                if (tempOffset >= this.seekLength) break;
+                if (tempOffset >= this.seekLength) {
+                    break;
+                }
 
                 // Calculates correlation value for the mixing position corresponding
                 // to 'tempOffset'
@@ -371,7 +352,6 @@ extend(Stretch.prototype, {
             }
             corrOffset = bestOffs;
         }
-
         return bestOffs;
     },
 
@@ -380,11 +360,9 @@ extend(Stretch.prototype, {
     * is faster to calculate
     */
     precalcCorrReferenceStereo: function() {
-        var i;
-        var cnt2;
-        var temp;
+        var i, cnt2, temp;
 
-        for (i = 0; i < this.overlapLength; i ++) {
+        for (i = 0; i < this.overlapLength; i++) {
             temp = i * (this.overlapLength - i);
             cnt2 = i * 2;
             this.pRefMidBuffer[cnt2] = this.pMidBuffer[cnt2] * temp;
@@ -396,17 +374,13 @@ extend(Stretch.prototype, {
         var mixing = this._inputBuffer.vector;
         mixingPos += this._inputBuffer.startIndex;
 
-        var corr;
-        var i;
-        var mixingOffset;
-
+        var corr, i, mixingOffset;
         corr = 0;
         for (i = 2; i < 2 * this.overlapLength; i += 2) {
             mixingOffset = i + mixingPos;
             corr += mixing[mixingOffset] * compare[i] +
             mixing[mixingOffset + 1] * compare[i + 1];
         }
-
         return corr;
     },
 
@@ -415,7 +389,7 @@ extend(Stretch.prototype, {
     * Overlaps samples in 'midBuffer' with the samples in 'pInputBuffer' at position
     * of 'ovlPos'.
     */
-    overlap: function (ovlPos) {
+    overlap: function(ovlPos) {
         this.overlapStereo(2 * ovlPos);
     },
 
@@ -426,19 +400,11 @@ extend(Stretch.prototype, {
         var pInput = this._inputBuffer.vector;
         pInputPos += this._inputBuffer.startIndex;
 
-        var pOutput = this._outputBuffer.vector;
-        var pOutputPos = this._outputBuffer.endIndex;
-
-        var i;
-        var cnt2;
-        var fTemp;
-        var fScale;
-        var fi;
-        var pInputOffset;
-        var pOutputOffset;
+        var pOutput = this._outputBuffer.vector,
+            pOutputPos = this._outputBuffer.endIndex,
+            i, cnt2, fTemp, fScale, fi, pInputOffset, pOutputOffset;
 
         fScale = 1 / this.overlapLength;
-
         for (i = 0; i < this.overlapLength; i++) {
             fTemp = (this.overlapLength - i) * fScale;
             fi = i * fScale;
@@ -449,14 +415,9 @@ extend(Stretch.prototype, {
             pOutput[pOutputOffset + 1] = pInput[pInputOffset + 1] * fi + this.pMidBuffer[cnt2 + 1] * fTemp;
         }
     },
-
     process: function() {
-        var ovlSkip;
-        var offset;
-        var temp;
-        var i;
-
-        if (this.pMidBuffer == null) {
+        var ovlSkip, offset, temp, i;
+        if (this.pMidBuffer === null) {
             // if midBuffer is empty, move the first samples of the input stream
             // into it
             if (this._inputBuffer.frameCount < this.overlapLength) {
@@ -496,7 +457,7 @@ extend(Stretch.prototype, {
             // processing sequence and so on
             //assert(offset + seekWindowLength <= (int)inputBuffer.numSamples());
             var start = this.inputBuffer.startIndex + 2 * (offset + this.seekWindowLength - this.overlapLength);
-            this.pMidBuffer.set(this._inputBuffer.vector.subarray(start, start + 2 * this.overlapLength))
+            this.pMidBuffer.set(this._inputBuffer.vector.subarray(start, start + 2 * this.overlapLength));
 
             // Remove the processed samples from the input buffer. Update
             // the difference between integer & nominal skip step to 'skipFract'

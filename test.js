@@ -1,7 +1,3 @@
-var t = new RateTransposer(true);
-var s = new Stretch(true);
-//s.tempo = .5;
-t.rate = 2;
 var context = new webkitAudioContext();
 
 var buffer;
@@ -14,11 +10,11 @@ loadSample = function(url) {
     request.onload = function() {
         console.log('url loaded');
         createBuffer(request.response);
-    }
+    };
 
     console.log('reading url');
     request.send();
-}
+};
 
 function createBuffer(arrayBuffer) {
     offset = 0;
@@ -29,8 +25,7 @@ function createBuffer(arrayBuffer) {
     console.log('loaded audio in ' + (new Date() - start));
 }
 
-//loadSample('badromance.mp3')
-loadSample('track.mp3')
+loadSample('/media/mp3/spanish_flea.mp3');
 
 var BUFFER_SIZE = 1024;
 
@@ -38,11 +33,11 @@ var node = context.createJavaScriptNode(BUFFER_SIZE, 2, 2);
 
 var samples = new Float32Array(BUFFER_SIZE * 2);
 
-node.onaudioprocess = function (e) {
+node.onaudioprocess = function(e) {
     var l = e.outputBuffer.getChannelData(0);
     var r = e.outputBuffer.getChannelData(1);
     var framesExtracted = f.extract(samples, BUFFER_SIZE);
-    if (framesExtracted == 0) {
+    if (framesExtracted === 0) {
         pause();
     }
     for (var i = 0; i < framesExtracted; i++) {
@@ -60,7 +55,7 @@ function pause() {
 }
 
 var source = {
-    extract: function (target, numFrames, position) {
+    extract: function(target, numFrames, position) {
         var l = buffer.getChannelData(0);
         var r = buffer.getChannelData(1);
         for (var i = 0; i < numFrames; i++) {
@@ -71,5 +66,10 @@ var source = {
     }
 };
 
+var t = new RateTransposer(true);
+t.rate = 2;
+
+var s = new Stretch(true);
+s.tempo = 0.5;
 
 f = new SimpleFilter(source, s);

@@ -37,67 +37,54 @@ function SoundTouch() {
 }
 
 extend(SoundTouch.prototype, {
-    clear: function () {
+    clear: function() {
         rateTransposer.clear();
         tdStretch.clear();
     },
-
-    clone: function () {
+    clone: function() {
         var result = new SoundTouch();
         result.rate = rate;
         result.tempo = tempo;
         return result;
     },
-
     get rate() {
         return this._rate;
     },
-
     set rate(rate) {
         this.virtualRate = rate;
         this._calculateEffectiveRateAndTempo();
     },
-
     set rateChange(rateChange) {
         this.rate = 1.0 + 0.01 * rateChange;
     },
-
     get tempo() {
         return this._tempo;
     },
-
     set tempo(tempo) {
         this.virtualTempo = tempo;
         this._calculateEffectiveRateAndTempo();
     },
-
     set tempoChange(tempoChange) {
         this.tempo = 1.0 + 0.01 * tempoChange;
     },
-
     set pitch(pitch) {
         this.virtualPitch = pitch;
         this._calculateEffectiveRateAndTempo();
     },
-
     set pitchOctaves(pitchOctaves) {
         this.pitch = Math.exp(0.69314718056 * pitchOctaves);
         this._calculateEffectiveRateAndTempo();
     },
-
     set pitchSemitones(pitchSemitones) {
         this.pitchOctaves = pitchSemitones / 12.0;
     },
-
     get inputBuffer() {
         return this._inputBuffer;
     },
-
     get outputBuffer() {
         return this._outputBuffer;
     },
-
-    _calculateEffectiveRateAndTempo: function () {
+    _calculateEffectiveRateAndTempo: function() {
         var previousTempo = this._tempo;
         var previousRate = this._rate;
 
@@ -130,8 +117,7 @@ extend(SoundTouch.prototype, {
             }
         }
     },
-
-    process: function () {
+    process: function() {
         if (this._rate > 1.0) {
             this.tdStretch.process();
             this.rateTransposer.process();
