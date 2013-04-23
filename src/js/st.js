@@ -18,7 +18,7 @@
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-(function() {
+(function(window) {
 
 /**
 * Giving this value for the sequence length sets automatic parameter value
@@ -904,4 +904,4 @@ window.soundtouch = {
     'SoundTouch': SoundTouch
 };
 
-})();
+})(window);
